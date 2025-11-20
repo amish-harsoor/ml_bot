@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nifty 50 AI Predictor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -211,6 +212,210 @@
             margin-top: 15px;
             display: none;
         }
+
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--card-bg);
+            border: 1px solid #334155;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .tab-content {
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Backtesting Styles */
+        .backtesting-form {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent-blue);
+            outline: none;
+        }
+
+        .bt-button {
+            width: 100%;
+            padding: 15px;
+            background: var(--accent-green);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 1.1rem;
+        }
+
+        .bt-button:hover {
+            background: #16a34a;
+        }
+
+        .bt-button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+
+        .bt-loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent-green);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+
+        .bt-error-msg {
+            color: var(--accent-red);
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .backtest-results {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            animation: fadeIn 0.5s ease;
+        }
+
+        .bt-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 20px;
+        }
+
+        .bt-header h3 {
+            margin: 0 0 10px 0;
+            color: var(--accent-green);
+        }
+
+        .bt-period {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-green);
+        }
+
+        .metric-value.negative {
+            color: var(--accent-red);
+        }
+
+        .performance-chart {
+            margin: 30px 0;
+            height: 300px;
+        }
+
+        .trade-summary {
+            border-top: 1px solid #334155;
+            padding-top: 20px;
+        }
+
+        .trade-summary h4 {
+            margin: 0 0 20px 0;
+            color: var(--text-primary);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .summary-label {
+            color: var(--text-secondary);
+        }
+
+        .summary-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -219,10 +424,18 @@
         <h1>NIFTY 50 PREDICTOR</h1>
         <div class="subtitle">Powered by XGBoost & Technical Analysis</div>
 
-        <div class="search-box">
-            <input type="text" id="tickerInput" placeholder="Enter Symbol (e.g. RELIANCE)" onkeypress="handleEnter(event)">
-            <button onclick="getPrediction()" id="predictBtn">PREDICT</button>
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('prediction')">Prediction</button>
+            <button class="tab-btn" onclick="switchTab('backtesting')">Backtesting</button>
         </div>
+
+        <!-- Prediction Tab -->
+        <div id="predictionTab" class="tab-content">
+            <div class="search-box">
+                <input type="text" id="tickerInput" placeholder="Enter Symbol (e.g. RELIANCE)" onkeypress="handleEnter(event)">
+                <button onclick="getPrediction()" id="predictBtn">PREDICT</button>
+            </div>
 
         <div class="chips">
             <div class="chip" onclick="setTicker('RELIANCE')">RELIANCE</div>
@@ -246,7 +459,7 @@
                 <div style="font-size: 0.9rem; color: #94a3b8;">NEXT DAY TREND</div>
                 <div class="prediction-badge" id="resBadge">UP</div>
                 <div style="font-size: 0.9rem; color: #94a3b8;">AI Confidence: <span id="resConf">0%</span></div>
-                
+
                 <div class="confidence-bar-bg">
                     <div class="confidence-bar-fill" id="confBar"></div>
                 </div>
@@ -257,9 +470,111 @@
                 <span>Timeline: T+1 Day</span>
             </div>
         </div>
+        </div>
+
+        <!-- Backtesting Tab -->
+        <div id="backtestingTab" class="tab-content" style="display: none;">
+            <div class="backtesting-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="btTicker">Stock Symbol</label>
+                        <input type="text" id="btTicker" placeholder="e.g. RELIANCE" value="RELIANCE">
+                    </div>
+                    <div class="form-group">
+                        <label for="btCapital">Initial Capital (₹)</label>
+                        <input type="number" id="btCapital" placeholder="100000" value="100000">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="btStartDate">Start Date</label>
+                        <input type="date" id="btStartDate" value="2023-01-01">
+                    </div>
+                    <div class="form-group">
+                        <label for="btEndDate">End Date</label>
+                        <input type="date" id="btEndDate" value="2023-12-31">
+                    </div>
+                </div>
+                <button onclick="runBacktest()" id="btBtn" class="bt-button">RUN BACKTEST</button>
+            </div>
+
+            <div class="bt-loader" id="btLoader"></div>
+            <div class="bt-error-msg" id="btErrorMsg"></div>
+
+            <div class="backtest-results" id="btResults" style="display: none;">
+                <div class="bt-header">
+                    <h3 id="btTitle">Backtest Results</h3>
+                    <div class="bt-period" id="btPeriod">Period: 2023-01-01 to 2023-12-31</div>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Accuracy</div>
+                        <div class="metric-value" id="btAccuracy">0.00%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Final Portfolio</div>
+                        <div class="metric-value" id="btFinalValue">₹0.00</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Total Return</div>
+                        <div class="metric-value" id="btReturn">0.00%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">vs Buy & Hold</div>
+                        <div class="metric-value" id="btVsBuyHold">0.00%</div>
+                    </div>
+                </div>
+
+                <div class="performance-chart">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+
+                <div class="trade-summary">
+                    <h4>Trading Summary</h4>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <span class="summary-label">Total Trades:</span>
+                            <span class="summary-value" id="btTotalTrades">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Winning Trades:</span>
+                            <span class="summary-value" id="btWinningTrades">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Losing Trades:</span>
+                            <span class="summary-value" id="btLosingTrades">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Win Rate:</span>
+                            <span class="summary-value" id="btWinRate">0.00%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
+        // Tab switching
+        function switchTab(tabName) {
+            const predictionTab = document.getElementById('predictionTab');
+            const backtestingTab = document.getElementById('backtestingTab');
+            const tabBtns = document.querySelectorAll('.tab-btn');
+
+            tabBtns.forEach(btn => btn.classList.remove('active'));
+
+            if (tabName === 'prediction') {
+                predictionTab.style.display = 'block';
+                backtestingTab.style.display = 'none';
+                document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+            } else {
+                predictionTab.style.display = 'none';
+                backtestingTab.style.display = 'block';
+                document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+            }
+        }
+
         function setTicker(ticker) {
             document.getElementById('tickerInput').value = ticker;
             getPrediction();
@@ -325,6 +640,213 @@
                 btn.innerText = "PREDICT";
                 loader.style.display = 'none';
             }
+        }
+
+        // Backtesting functions
+        async function runBacktest() {
+            const ticker = document.getElementById('btTicker').value.trim();
+            const startDate = document.getElementById('btStartDate').value;
+            const endDate = document.getElementById('btEndDate').value;
+            const initialCapital = parseFloat(document.getElementById('btCapital').value);
+
+            if (!ticker || !startDate || !endDate || !initialCapital) {
+                showBTError('Please fill all fields');
+                return;
+            }
+
+            // UI Reset
+            const btn = document.getElementById('btBtn');
+            const loader = document.getElementById('btLoader');
+            const results = document.getElementById('btResults');
+            const errorMsg = document.getElementById('btErrorMsg');
+
+            btn.disabled = true;
+            btn.innerText = "RUNNING BACKTEST...";
+            loader.style.display = 'block';
+            results.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            try {
+                // Get backtesting data
+                const response = await fetch(`/backtest/${ticker}/${startDate}/${endDate}`);
+                if (!response.ok) throw new Error('Backtest failed');
+
+                const btData = await response.json();
+
+                // Get historical prices for buy & hold calculation
+                const priceResponse = await fetch(`/get_prices/${ticker}/${startDate}/${endDate}`);
+                const priceData = await priceResponse.json();
+
+                // Simulate trading
+                const simulation = simulateTrading(btData, priceData, initialCapital);
+
+                // Display results
+                displayBacktestResults(btData, simulation, priceData);
+
+                results.style.display = 'block';
+
+            } catch (err) {
+                showBTError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "RUN BACKTEST";
+                loader.style.display = 'none';
+            }
+        }
+
+        function simulateTrading(btData, priceData, initialCapital) {
+            let capital = initialCapital;
+            let shares = 0;
+            const portfolioValues = [initialCapital];
+            let totalTrades = 0;
+            let winningTrades = 0;
+            let position = null; // null, 'long'
+
+            const predictions = btData.predictions || [];
+            const prices = priceData.prices || [];
+            const dates = btData.dates || [];
+
+            for (let i = 0; i < predictions.length; i++) {
+                const prediction = predictions[i]; // 1 = UP, 0 = DOWN
+                const price = prices[i];
+
+                if (!price) continue;
+
+                // Strategy: Buy on UP prediction if not holding, Sell on DOWN prediction if holding
+                if (prediction === 1 && position === null && capital > 0) {
+                    // Buy signal
+                    shares = Math.floor(capital / price);
+                    if (shares > 0) {
+                        capital -= shares * price;
+                        position = 'long';
+                        totalTrades++;
+                    }
+                } else if (prediction === 0 && position === 'long') {
+                    // Sell signal
+                    const entryPrice = (initialCapital - capital) / shares; // Approximate
+                    const sellValue = shares * price;
+                    const profit = sellValue - (shares * entryPrice);
+
+                    if (profit > 0) winningTrades++;
+
+                    capital += sellValue;
+                    shares = 0;
+                    position = null;
+                    totalTrades++;
+                }
+
+                // Track portfolio value
+                const currentValue = capital + (shares * price);
+                portfolioValues.push(currentValue);
+            }
+
+            // Close any remaining position at the end
+            if (position === 'long' && prices.length > 0) {
+                const finalPrice = prices[prices.length - 1];
+                capital += shares * finalPrice;
+                shares = 0;
+                position = null;
+            }
+
+            const finalValue = capital;
+            const totalReturn = ((finalValue - initialCapital) / initialCapital) * 100;
+
+            return {
+                finalValue: finalValue,
+                totalReturn: totalReturn,
+                portfolioValues: portfolioValues,
+                dates: dates,
+                totalTrades: totalTrades,
+                winningTrades: winningTrades,
+                winRate: totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0
+            };
+        }
+
+        function displayBacktestResults(btData, simulation, priceData) {
+            document.getElementById('btTitle').innerText = `Backtest Results - ${btData.ticker}`;
+            document.getElementById('btPeriod').innerText = `Period: ${btData.period}`;
+
+            const initialCapital = parseFloat(document.getElementById('btCapital').value);
+
+            document.getElementById('btAccuracy').innerText = (btData.accuracy * 100).toFixed(2) + '%';
+
+            // Final Value
+            const finalValueEl = document.getElementById('btFinalValue');
+            finalValueEl.innerText = '₹' + simulation.finalValue.toLocaleString('en-IN');
+            finalValueEl.className = 'metric-value' + (simulation.finalValue < initialCapital ? ' negative' : '');
+
+            // Total Return
+            const returnEl = document.getElementById('btReturn');
+            returnEl.innerText = (simulation.totalReturn > 0 ? '+' : '') + simulation.totalReturn.toFixed(2) + '%';
+            returnEl.className = 'metric-value' + (simulation.totalReturn < 0 ? ' negative' : '');
+
+            // Calculate buy & hold return
+            const buyHoldReturn = ((priceData.end_price - priceData.start_price) / priceData.start_price) * 100;
+            const strategyVsBuyHold = simulation.totalReturn - buyHoldReturn;
+
+            // Vs Buy & Hold
+            const vsBuyHoldEl = document.getElementById('btVsBuyHold');
+            vsBuyHoldEl.innerText = (strategyVsBuyHold > 0 ? '+' : '') + strategyVsBuyHold.toFixed(2) + '%';
+            vsBuyHoldEl.className = 'metric-value' + (strategyVsBuyHold < 0 ? ' negative' : '');
+
+            document.getElementById('btTotalTrades').innerText = simulation.totalTrades;
+            document.getElementById('btWinningTrades').innerText = simulation.winningTrades;
+            document.getElementById('btLosingTrades').innerText = simulation.totalTrades - simulation.winningTrades;
+            document.getElementById('btWinRate').innerText = simulation.winRate.toFixed(2) + '%';
+
+            // Create chart
+            createPerformanceChart(simulation);
+        }
+
+        let performanceChart = null;
+
+        function createPerformanceChart(simulation) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (performanceChart) {
+                performanceChart.destroy();
+            }
+
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: simulation.dates,
+                    datasets: [{
+                        label: 'Portfolio Value',
+                        data: simulation.portfolioValues,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₹' + value.toLocaleString('en-IN');
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function showBTError(message) {
+            const errorMsg = document.getElementById('btErrorMsg');
+            errorMsg.innerText = message;
+            errorMsg.style.display = 'block';
         }
     </script>
 </body>
