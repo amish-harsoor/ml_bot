@@ -209,6 +209,61 @@ def backtest_ticker(ticker, start_date, end_date):
         results_df = pd.concat([existing, results_df], ignore_index=True)
     results_df.to_csv('backtest_results.csv', index=False)
 
+    # Calculate additional user-friendly metrics
+    max_drawdown = 0
+    peak_value = 1.0
+    for value in portfolio_history:
+        if value > peak_value:
+            peak_value = value
+        drawdown = (peak_value - value) / peak_value
+        max_drawdown = max(max_drawdown, drawdown)
+    
+    # Risk metrics
+    if daily_returns:
+        volatility = np.std(daily_returns) * np.sqrt(252)  # Annualized
+        max_single_day_gain = max(daily_returns) if daily_returns else 0
+        max_single_day_loss = min(daily_returns) if daily_returns else 0
+    else:
+        volatility = 0
+        max_single_day_gain = 0
+        max_single_day_loss = 0
+    
+    # User-friendly descriptions
+    def get_return_grade(returns):
+        if returns >= 0.2:
+            return "Excellent"
+        elif returns >= 0.1:
+            return "Very Good"
+        elif returns >= 0.05:
+            return "Good"
+        elif returns >= 0:
+            return "Fair"
+        else:
+            return "Poor"
+    
+    def get_risk_level(volatility):
+        if volatility <= 0.15:
+            return "Low"
+        elif volatility <= 0.25:
+            return "Medium"
+        else:
+            return "High"
+    
+    def get_sharpe_grade(sharpe_ratio):
+        if sharpe_ratio >= 2:
+            return "Excellent"
+        elif sharpe_ratio >= 1:
+            return "Good"
+        elif sharpe_ratio >= 0.5:
+            return "Fair"
+        else:
+            return "Poor"
+    
+    # Calculate profit factor
+    winning_trades = [r for r in daily_returns if r > 0]
+    losing_trades = [r for r in daily_returns if r < 0]
+    profit_factor = sum(winning_trades) / abs(sum(losing_trades)) if losing_trades else float('inf') if winning_trades else 0
+    
     return {
         "ticker": ticker,
         "period": f"{start_date} to {end_date}",
@@ -220,9 +275,12 @@ def backtest_ticker(ticker, start_date, end_date):
         "mcc": round(mcc, 4),
         "cumulative_return": round(cumulative_return, 4),
         "sharpe_ratio": round(sharpe, 4),
+        "max_drawdown": round(max_drawdown, 4),
+        "volatility": round(volatility, 4),
         "mc_mean_return": round(mc_mean_return, 4),
         "mc_std_return": round(mc_std_return, 4),
         "mc_avg_max_drawdown": round(mc_max_dd, 4),
+        "profit_factor": round(profit_factor, 2),
         "regime_win_rate": regime_win_rate,
         "portfolio_history": [round(v, 4) for v in portfolio_history],
         "confusion_matrix": cm,  # [[TN, FP], [FN, TP]]
@@ -235,6 +293,17 @@ def backtest_ticker(ticker, start_date, end_date):
             "predicted_down": int(down_predictions),
             "actual_up": int(actual_ups),
             "actual_down": int(actual_downs)
+        },
+        "user_friendly_metrics": {
+            "return_grade": get_return_grade(cumulative_return),
+            "risk_level": get_risk_level(volatility),
+            "sharpe_grade": get_sharpe_grade(sharpe),
+            "max_single_day_gain": round(max_single_day_gain * 100, 2),
+            "max_single_day_loss": round(max_single_day_loss * 100, 2),
+            "total_winning_trades": len(winning_trades),
+            "total_losing_trades": len(losing_trades),
+            "average_win": round(np.mean(winning_trades) * 100, 2) if winning_trades else 0,
+            "average_loss": round(np.mean(losing_trades) * 100, 2) if losing_trades else 0
         }
     }
 

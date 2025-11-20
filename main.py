@@ -31,7 +31,7 @@ async def predict(ticker: str):
     pkg = get_model()
     symbol = ticker.upper() + ".NS" if not ticker.upper().endswith(".NS") else ticker.upper()
 
-    data = yf.download(symbol, period="1y", auto_adjust=True, progress=False)
+    data = yf.download(symbol, period="3mo", auto_adjust=True, progress=False)
     
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
@@ -54,16 +54,62 @@ async def predict(ticker: str):
     # Data is already normalized from add_features pipeline
     X_scaled = X_latest
     
-    # FIX IS HERE: Explicitly convert numpy types to standard python float
+    # Get prediction probability
     prob = float(pkg["model"].predict_proba(X_scaled)[0][1])
     price = float(data["Close"].iloc[-1])
+    
+    # Calculate additional metrics for better UX
+    # Recent 5-day performance
+    recent_5d = data['Close'].tail(6)
+    if len(recent_5d) >= 2:
+        recent_return = ((recent_5d.iloc[-1] - recent_5d.iloc[-6]) / recent_5d.iloc[-6]) * 100
+    else:
+        recent_return = 0
+    
+    # Calculate risk level
+    if prob >= 0.7:
+        risk_level = "Low"
+        prediction_strength = "Strong"
+    elif prob >= 0.6 or prob <= 0.4:
+        risk_level = "Medium"
+        prediction_strength = "Moderate"
+    else:
+        risk_level = "High"
+        prediction_strength = "Weak"
+    
+    # Market sentiment
+    if prob >= 0.65:
+        sentiment = "Bullish"
+    elif prob <= 0.35:
+        sentiment = "Bearish"
+    else:
+        sentiment = "Neutral"
+    
+    # Confidence level description
+    confidence_pct = abs(prob - 0.5) * 200  # Convert to 0-100% confidence
+    if confidence_pct >= 70:
+        confidence_desc = "Very High"
+    elif confidence_pct >= 50:
+        confidence_desc = "High"
+    elif confidence_pct >= 30:
+        confidence_desc = "Medium"
+    else:
+        confidence_desc = "Low"
 
     return {
         "ticker": ticker.upper().replace(".NS", ""),
         "price": round(price, 2),
         "prediction": "UP" if prob > 0.5 else "DOWN",
         "confidence": round(prob, 4),
-        "model": "Nifty 50 Multi-Stock AI"
+        "model": "Nifty 50 Multi-Stock AI",
+        "additional_metrics": {
+            "recent_5d_return": round(recent_return, 2),
+            "risk_level": risk_level,
+            "prediction_strength": prediction_strength,
+            "market_sentiment": sentiment,
+            "confidence_level": confidence_desc,
+            "confidence_percentage": round(confidence_pct, 1)
+        }
     }
 
 @app.get("/backtest/{ticker}/{start_date}/{end_date}")

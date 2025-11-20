@@ -185,6 +185,67 @@
             transition: width 1s ease;
         }
 
+        /* Enhanced Metrics Section */
+        .metrics-section {
+            margin-top: 30px;
+            border-top: 1px solid #334155;
+            padding-top: 25px;
+        }
+
+        .metrics-title {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: var(--accent-blue);
+        }
+
+        .prediction-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .prediction-metric-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .prediction-metric-label {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+
+        .prediction-metric-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .prediction-metric-value.positive {
+            color: var(--accent-green);
+        }
+
+        .prediction-metric-value.negative {
+            color: var(--accent-red);
+        }
+
+        .sentiment-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: bold;
+        }
+
+        .sentiment-bull { color: var(--accent-green); }
+        .sentiment-bear { color: var(--accent-red); }
+        .sentiment-neutral { color: var(--text-secondary); }
+
         .meta-info {
             display: flex;
             justify-content: space-between;
@@ -465,6 +526,42 @@
                 </div>
             </div>
 
+            <!-- Enhanced Metrics Section -->
+            <div class="metrics-section">
+                <div class="metrics-title">📊 Market Analysis</div>
+                <div class="prediction-metrics-grid">
+                    <div class="prediction-metric-card">
+                        <div class="prediction-metric-label">Market Sentiment</div>
+                        <div class="prediction-metric-value sentiment-indicator" id="sentiment">
+                            <span class="sentiment-neutral">Neutral</span>
+                        </div>
+                    </div>
+                    <div class="prediction-metric-card">
+                        <div class="prediction-metric-label">Prediction Strength</div>
+                        <div class="prediction-metric-value" id="predictionStrength">Moderate</div>
+                    </div>
+                    <div class="prediction-metric-card">
+                        <div class="prediction-metric-label">Risk Level</div>
+                        <div class="prediction-metric-value" id="riskLevel">Medium</div>
+                    </div>
+                    <div class="prediction-metric-card">
+                        <div class="prediction-metric-label">5-Day Return</div>
+                        <div class="prediction-metric-value" id="recentReturn">0.00%</div>
+                    </div>
+                </div>
+
+                <div class="prediction-metrics-grid">
+                    <div class="prediction-metric-card">
+                        <div class="prediction-metric-label">Confidence Level</div>
+                        <div class="prediction-metric-value" id="confidenceLevel">Medium</div>
+                    </div>
+                    <div class="prediction-metric-card">
+                        <div class="prediction-metric-label">AI Score</div>
+                        <div class="prediction-metric-value" id="aiScore">0%</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="meta-info">
                 <span id="resModel">Model: Nifty 50 AI</span>
                 <span>Timeline: T+1 Day</span>
@@ -523,6 +620,47 @@
                     <div class="metric-card">
                         <div class="metric-label">vs Buy & Hold</div>
                         <div class="metric-value" id="btVsBuyHold">0.00%</div>
+                    </div>
+                </div>
+
+                <!-- Enhanced User-Friendly Metrics -->
+                <div class="metrics-title" style="margin-top: 30px;">🎯 Performance Grade</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Return Grade</div>
+                        <div class="metric-value" id="btReturnGrade">Fair</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Risk Level</div>
+                        <div class="metric-value" id="btRiskLevel">Medium</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Risk-Adjusted Return</div>
+                        <div class="metric-value" id="btSharpeGrade">Good</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Max Drawdown</div>
+                        <div class="metric-value" id="btMaxDrawdown">0.00%</div>
+                    </div>
+                </div>
+
+                <div class="metrics-title">📈 Trading Insights</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Profit Factor</div>
+                        <div class="metric-value" id="btProfitFactor">0.00</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Best Day Gain</div>
+                        <div class="metric-value" id="btBestDay">+0.00%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Worst Day Loss</div>
+                        <div class="metric-value" id="btWorstDay">-0.00%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Volatility</div>
+                        <div class="metric-value" id="btVolatility">0.00%</div>
                     </div>
                 </div>
 
@@ -606,7 +744,7 @@
                 
                 const data = await response.json();
                 
-                // Populate Data
+                // Populate Basic Data
                 document.getElementById('resTicker').innerText = data.ticker;
                 document.getElementById('resPrice').innerText = data.price.toLocaleString('en-IN');
                 document.getElementById('resConf').innerText = (data.confidence * 100).toFixed(1) + "%";
@@ -623,6 +761,32 @@
                 } else {
                     badge.className = 'prediction-badge pred-down';
                     bar.style.backgroundColor = '#ef4444';
+                }
+
+                // Populate Enhanced Metrics
+                if (data.additional_metrics) {
+                    const metrics = data.additional_metrics;
+                    
+                    // Market Sentiment
+                    const sentimentEl = document.getElementById('sentiment');
+                    sentimentEl.innerHTML = `<span class="sentiment-${metrics.market_sentiment.toLowerCase()}">${metrics.market_sentiment}</span>`;
+                    
+                    // Prediction Strength
+                    document.getElementById('predictionStrength').innerText = metrics.prediction_strength;
+                    
+                    // Risk Level
+                    document.getElementById('riskLevel').innerText = metrics.risk_level;
+                    
+                    // Recent Return
+                    const recentReturnEl = document.getElementById('recentReturn');
+                    recentReturnEl.innerText = metrics.recent_5d_return.toFixed(2) + "%";
+                    recentReturnEl.className = 'prediction-metric-value ' + (metrics.recent_5d_return >= 0 ? 'positive' : 'negative');
+                    
+                    // Confidence Level
+                    document.getElementById('confidenceLevel').innerText = metrics.confidence_level;
+                    
+                    // AI Score
+                    document.getElementById('aiScore').innerText = metrics.confidence_percentage.toFixed(1) + "%";
                 }
 
                 // Animate Bar
@@ -768,6 +932,7 @@
 
             const initialCapital = parseFloat(document.getElementById('btCapital').value);
 
+            // Basic Metrics
             document.getElementById('btAccuracy').innerText = (btData.accuracy * 100).toFixed(2) + '%';
 
             // Final Value
@@ -793,6 +958,34 @@
             document.getElementById('btWinningTrades').innerText = simulation.winningTrades;
             document.getElementById('btLosingTrades').innerText = simulation.totalTrades - simulation.winningTrades;
             document.getElementById('btWinRate').innerText = simulation.winRate.toFixed(2) + '%';
+
+            // Enhanced User-Friendly Metrics
+            if (btData.user_friendly_metrics) {
+                const ufm = btData.user_friendly_metrics;
+                
+                // Performance Grades
+                document.getElementById('btReturnGrade').innerText = ufm.return_grade;
+                document.getElementById('btRiskLevel').innerText = ufm.risk_level;
+                document.getElementById('btSharpeGrade').innerText = ufm.sharpe_grade;
+                
+                // Risk Metrics
+                document.getElementById('btMaxDrawdown').innerText = '-' + (btData.max_drawdown * 100).toFixed(2) + '%';
+                const maxDDEl = document.getElementById('btMaxDrawdown');
+                maxDDEl.className = 'metric-value negative';
+                
+                // Trading Insights
+                document.getElementById('btProfitFactor').innerText = btData.profit_factor.toFixed(2);
+                document.getElementById('btBestDay').innerText = (ufm.max_single_day_gain >= 0 ? '+' : '') + ufm.max_single_day_gain.toFixed(2) + '%';
+                document.getElementById('btWorstDay').innerText = (ufm.max_single_day_loss >= 0 ? '+' : '') + ufm.max_single_day_loss.toFixed(2) + '%';
+                
+                // Volatility (annualized)
+                document.getElementById('btVolatility').innerText = (btData.volatility * 100).toFixed(2) + '%';
+                const volEl = document.getElementById('btVolatility');
+                volEl.className = 'metric-value';
+                if (btData.volatility > 0.25) {
+                    volEl.className += ' negative';
+                }
+            }
 
             // Create chart
             createPerformanceChart(simulation);
