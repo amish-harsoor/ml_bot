@@ -14,7 +14,10 @@ def train_nifty50():
     for t in NIFTY50_TICKERS:
         try:
             print(f"Downloading {t} ... ", end="")
-            data = yf.download(t, period="8y", auto_adjust=True, progress=False, multi_level_index=False)
+            ticker = yf.Ticker(t)
+            info = ticker.info
+            first_date = datetime.fromtimestamp(info.get('firstTradeDateEpochUtc', 0)).strftime("%Y-%m-%d") if info.get('firstTradeDateEpochUtc') else "1990-01-01"
+            data = yf.download(t, start=first_date, end=datetime.today().strftime("%Y-%m-%d"), auto_adjust=True, progress=False, multi_level_index=False)
             
             if isinstance(data.columns, pd.MultiIndex):
                 data.columns = data.columns.get_level_values(0)
@@ -80,6 +83,7 @@ def train_nifty50():
         "features": X.columns.tolist(),
         "last_update": datetime.now().strftime("%Y-%m-%d %H:%M")
     }
+    MODEL_PATH.unlink(missing_ok=True)
     joblib.dump(package, MODEL_PATH)
     print(f"MODEL READY! {len(combined):,} samples → {MODEL_PATH}")
     return package
