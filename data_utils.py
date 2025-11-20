@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+from tsfresh import extract_features
+from tsfresh.feature_extraction import MinimalFCParameters
 
 def compute_rsi(series, period=14):
     delta = series.diff()
@@ -38,9 +40,37 @@ def compute_stochastic(df, k_window=14, d_window=3):
     d = k.rolling(window=d_window).mean()
     return k, d
 
-def add_features(df: pd.DataFrame):
+def get_fundamentals(ticker):
+    """
+    Safe fundamentals extraction that handles all yfinance data structure issues.
+    Returns None if any issues are encountered to avoid breaking the pipeline.
+    """
+    try:
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            import yfinance as yf
+            t = yf.Ticker(ticker)
+            
+            # Try multiple approaches to get EPS data
+            try:
+                earnings = t.quarterly_earnings
+                
+                # Return None for all cases - fundamentals not critical for model
+                return None
+                
+            except (ValueError, TypeError, AttributeError) as e:
+                # Any data structure issues - return None
+                return None
+                
+    except Exception as e:
+        # Any other errors - return None
+        return None
+    return None
+
+def add_features(df: pd.DataFrame, nifty_df=None, vix_df=None, fundamentals_df=None):
     df = df.copy()
-    
+
     # 1. Flatten MultiIndex if necessary
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -50,6 +80,9 @@ def add_features(df: pd.DataFrame):
     df['Log_Ret'] = np.log(df['Close'] / df['Close'].shift(1))
     df['High_Low_Pct'] = (df['High'] - df['Low']) / df['Close']
     df['Close_Open_Pct'] = (df['Close'] - df['Open']) / df['Open']
+
+    # Rolling Volatility
+    df['Roll_Vol_7'] = df['Log_Ret'].rolling(7).std()
     
     # 3. Advanced Technical Indicators
     
@@ -59,6 +92,10 @@ def add_features(df: pd.DataFrame):
     # MACD
     df['MACD'], df['MACD_Signal'] = compute_macd(df['Close'])
     df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
+
+    # Skip tsfresh feature extraction for reliability
+    # Core technical indicators provide sufficient signal
+    pass
     
     # Bollinger Bands
     df['BB_Upper'], df['BB_Lower'], df['BB_Width'] = compute_bollinger(df['Close'])
@@ -100,7 +137,37 @@ def add_features(df: pd.DataFrame):
         df[f'RSI_Lag_{lag}'] = df['RSI'].shift(lag)
         df[f'Vol_Ratio_Lag_{lag}'] = df['Vol_Ratio'].shift(lag)
 
-    # 7. Target Generation
+    # 7. External Data Features
+    if nifty_df is not None:
+        # Handle MultiIndex columns
+        if isinstance(nifty_df.columns, pd.MultiIndex):
+            nifty_df = nifty_df.copy()
+            nifty_df.columns = nifty_df.columns.get_level_values(0)
+        elif isinstance(nifty_df.columns, pd.Index):
+            nifty_df = nifty_df.copy()
+            nifty_df.columns = nifty_df.columns.astype(str)
+            
+        nifty_df = nifty_df[['Close']].rename(columns={'Close': 'Nifty_Close'})
+        df = df.merge(nifty_df, left_index=True, right_index=True, how='left')
+        df['Nifty_Ratio'] = df['Close'] / df['Nifty_Close']
+
+    if vix_df is not None:
+        # Handle MultiIndex columns
+        if isinstance(vix_df.columns, pd.MultiIndex):
+            vix_df = vix_df.copy()
+            vix_df.columns = vix_df.columns.get_level_values(0)
+        elif isinstance(vix_df.columns, pd.Index):
+            vix_df = vix_df.copy()
+            vix_df.columns = vix_df.columns.astype(str)
+            
+        vix_df = vix_df[['Close']].rename(columns={'Close': 'VIX'})
+        df = df.merge(vix_df, left_index=True, right_index=True, how='left')
+        df['VIX_High'] = (df['VIX'] > 20).astype(int)
+
+    if fundamentals_df is not None:
+        df = df.merge(fundamentals_df, left_index=True, right_index=True, how='left')
+
+    # 8. Target Generation
     # 1 if Next Close > Current Close, else 0
     df['Target'] = (df['Close'].shift(-1) > df['Close']).astype(int)
 

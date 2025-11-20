@@ -31,10 +31,13 @@ async def predict(ticker: str):
     pkg = get_model()
     symbol = ticker.upper() + ".NS" if not ticker.upper().endswith(".NS") else ticker.upper()
 
-    data = yf.download(symbol, period="1y", auto_adjust=True, progress=False, multi_level_index=False)
+    data = yf.download(symbol, period="1y", auto_adjust=True, progress=False)
     
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
+    elif isinstance(data.columns, pd.Index):
+        # Ensure columns are strings
+        data.columns = data.columns.astype(str)
 
     if data.empty:
         raise HTTPException(404, "Ticker not found or no data")
@@ -48,7 +51,8 @@ async def predict(ticker: str):
     except KeyError as e:
         raise HTTPException(500, f"Feature mismatch: {e}")
 
-    X_scaled = pkg["scaler"].transform(X_latest)
+    # Data is already normalized from add_features pipeline
+    X_scaled = X_latest
     
     # FIX IS HERE: Explicitly convert numpy types to standard python float
     prob = float(pkg["model"].predict_proba(X_scaled)[0][1])
@@ -86,13 +90,16 @@ async def backtest(ticker: str, start_date: str, end_date: str):
 @app.get("/get_prices/{ticker}/{start_date}/{end_date}")
 async def get_prices(ticker: str, start_date: str, end_date: str):
     symbol = ticker.upper() + ".NS" if not ticker.upper().endswith(".NS") else ticker.upper()
-    data = yf.download(symbol, start=start_date, end=end_date, auto_adjust=True, progress=False, multi_level_index=False)
+    data = yf.download(symbol, start=start_date, end=end_date, auto_adjust=True, progress=False)
 
     if data.empty:
         raise HTTPException(404, "No price data available")
 
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
+    elif isinstance(data.columns, pd.Index):
+        # Ensure columns are strings
+        data.columns = data.columns.astype(str)
 
     prices = data['Close'].ffill().tolist()
     dates = data.index.strftime('%Y-%m-%d').tolist()

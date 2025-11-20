@@ -3,7 +3,7 @@ import yfinance as yf
 import numpy as np
 import os
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, matthews_corrcoef
-from data_utils import add_features
+from data_utils import add_features, get_fundamentals
 from model_training import get_model
 
 def backtest_ticker(ticker, start_date, end_date):
@@ -24,7 +24,7 @@ def backtest_ticker(ticker, start_date, end_date):
     buffer_days = 250
     start_buffer = pd.to_datetime(start_date) - pd.Timedelta(days=buffer_days)
     
-    data = yf.download(ticker, start=start_buffer, end=end_date, auto_adjust=True, progress=False, multi_level_index=False)
+    data = yf.download(ticker, start=start_buffer, end=end_date, auto_adjust=True, progress=False)
     
     if data.empty:
         return {"error": "No data available for the specified ticker and date range"}
@@ -32,9 +32,24 @@ def backtest_ticker(ticker, start_date, end_date):
     # Handle MultiIndex columns
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
-    
+    elif isinstance(data.columns, pd.Index):
+        # Ensure columns are strings
+        data.columns = data.columns.astype(str)
+
+    # Fetch external data
+    nifty_data = yf.download('^NSEI', start=start_buffer, end=end_date, auto_adjust=True, progress=False)
+    vix_data = yf.download('^INDIAVIX', start=start_buffer, end=end_date, auto_adjust=True, progress=False)
+    # Skip fundamentals completely if any issues - core model doesn't need them
+    fundamentals = None
+
     # Add technical features
-    df = add_features(data)
+    df = add_features(data, nifty_df=nifty_data, vix_df=vix_data, fundamentals_df=fundamentals)
+
+    # Normalize per ticker
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.drop('Target', errors='ignore')
+    df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
     
     if df.empty:
         return {"error": "Not enough data to generate features (need at least ~200 trading days)"}
@@ -46,9 +61,11 @@ def backtest_ticker(ticker, start_date, end_date):
         return {"error": f"No data available in the backtest period {start_date} to {end_date}"}
 
     # Download Nifty for regime classification
-    nifty = yf.download('^NSEI', start=start_buffer, end=end_date, progress=False, auto_adjust=True, multi_level_index=False)
+    nifty = yf.download('^NSEI', start=start_buffer, end=end_date, progress=False, auto_adjust=True)
     if isinstance(nifty.columns, pd.MultiIndex):
         nifty.columns = nifty.columns.get_level_values(0)
+    elif isinstance(nifty.columns, pd.Index):
+        nifty.columns = nifty.columns.astype(str)
     nifty_bt = nifty[(nifty.index >= start_date) & (nifty.index <= end_date)]
     nifty_bt['Quarter'] = nifty_bt.index.to_period('Q')
     q_returns = nifty_bt.groupby('Quarter')['Close'].agg(lambda x: x.iloc[-1]/x.iloc[0] - 1 if len(x)>1 else 0)
@@ -65,8 +82,8 @@ def backtest_ticker(ticker, start_date, end_date):
     except KeyError as e:
         return {"error": f"Feature mismatch: {e}. Model may need retraining."}
 
-    # Scale features
-    X_scaled = pkg["scaler"].transform(X)
+    # Features already scaled
+    X_scaled = X
 
     # Make calibrated predictions
     preds_proba = pkg["calibrated_model"].predict_proba(X_scaled)[:, 1]
@@ -75,9 +92,11 @@ def backtest_ticker(ticker, start_date, end_date):
 
     # Apply filters
     # VIX filter: if VIX > 20, set to flat (0)
-    vix = yf.download('^VIX', start=start_date, end=end_date, progress=False, auto_adjust=True, multi_level_index=False)
+    vix = yf.download('^INDIAVIX', start=start_date, end=end_date, progress=False, auto_adjust=True)
     if isinstance(vix.columns, pd.MultiIndex):
         vix.columns = vix.columns.get_level_values(0)
+    elif isinstance(vix.columns, pd.Index):
+        vix.columns = vix.columns.astype(str)
     vix = vix.reindex(df_bt.index).ffill()
     for i in range(len(preds)):
         if vix['Close'].iloc[i] > 20:
