@@ -3,6 +3,7 @@ import yfinance as yf
 import joblib
 import xgboost as xgb
 from sklearn.preprocessing import StandardScaler
+from sklearn.calibration import CalibratedClassifierCV
 from datetime import datetime
 import numpy as np
 from config import MODEL_PATH, NIFTY50_TICKERS
@@ -86,8 +87,13 @@ def train_nifty50():
         verbose=100
     )
 
+    # Calibrate probabilities with Platt scaling
+    calibrated_model = CalibratedClassifierCV(model, method='sigmoid', cv='prefit')
+    calibrated_model.fit(X_train_s, y_train)
+
     package = {
         "model": model,
+        "calibrated_model": calibrated_model,
         "scaler": scaler,
         "features": X.columns.tolist(),
         "last_update": datetime.now().strftime("%Y-%m-%d %H:%M")

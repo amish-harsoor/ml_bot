@@ -1,8 +1,13 @@
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 import pandas as pd
 import yfinance as yf
 import uvicorn
+import matplotlib.pyplot as plt
+import io
+import base64
 from config import MODEL_PATH
 from data_utils import add_features
 from model_training import train_nifty50, get_model
@@ -63,6 +68,19 @@ async def backtest(ticker: str, start_date: str, end_date: str):
     result = backtest_ticker(symbol, start_date, end_date)
     if "error" in result:
         raise HTTPException(400, result["error"])
+    # Generate P&L plot
+    if 'portfolio_history' in result:
+        plt.figure(figsize=(10, 5))
+        plt.plot(result['portfolio_history'])
+        plt.title(f'Portfolio Value Over Time for {ticker}')
+        plt.xlabel('Days')
+        plt.ylabel('Portfolio Value')
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+        result['pnl_plot'] = img_base64
+        plt.close()
     return result
 
 @app.get("/get_prices/{ticker}/{start_date}/{end_date}")

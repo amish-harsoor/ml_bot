@@ -1,0 +1,4 @@
+ticker,start_date,end_date,accuracy,precision,recall,f1_score,mcc,cumulative_return,sharpe_ratio,mc_mean_return,mc_std_return,mc_avg_max_drawdown,bull_win_rate,correction_win_rate
+RELIANCE.NS,2023-01-01,2024-01-01,0.5367,0.6316,0.3103,0.4162,0.1186,0.1465,2.3994,0.2232,0.1106,-0.0385,0.5191,0.6286
+RELIANCE.NS,2023-01-01,2025-11-30,0.5394,0.6358,0.2689,0.378,0.1227,0.3146,1.5249,0.6155,0.3042,-0.1006,0.5335,0.5516
+RELIANCE.NS,2025-01-01,2025-11-30,0.5156,0.5833,0.2121,0.3111,0.0651,-0.0461,0.1537,0.0094,0.0695,-0.0663,0.5104,0.5208

@@ -1,0 +1,52 @@
+name: Weekly Backtest
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Every Monday at midnight UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run backtest on RELIANCE.NS for recent 3 months
+      run: |
+        python -c "
+        from backtesting import backtest_ticker
+        import datetime
+        end_date = datetime.date.today().strftime('%Y-%m-%d')
+        start_date = (datetime.date.today() - datetime.timedelta(days=90)).strftime('%Y-%m-%d')
+        result = backtest_ticker('RELIANCE.NS', start_date, end_date)
+        f1 = result.get('f1_score', 0)
+        print(f'F1 Score: {f1}')
+        if f1 < 0.6:
+            print('ALERT: F1 Score below 60%')
+            exit(1)
+        else:
+            print('Backtest passed')
+        "
+
+    - name: Create issue on failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'Backtest Alert: F1 Score Below 60%',
+            body: 'Weekly backtest failed with F1 score below 60%. Please investigate.'
+          })
