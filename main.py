@@ -1,4 +1,3 @@
-# main.py - NIFTY 50 MULTI-STOCK PREDICTOR (JSON FIX)
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 import pandas as pd
