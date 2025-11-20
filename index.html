@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nifty 50 AI Predictor</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            font-weight: 300;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-size: 0.9rem;
+        }
+
+        /* Search Box */
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: var(--card-bg);
+            color: white;
+            font-size: 1.1rem;
+            outline: none;
+            transition: border 0.2s;
+            text-transform: uppercase;
+        }
+
+        input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        button {
+            padding: 0 30px;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 1rem;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+
+        /* Quick Chips */
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .chip {
+            background: var(--card-bg);
+            border: 1px solid #334155;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .chip:hover {
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        /* Result Card */
+        .result-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            display: none; /* Hidden by default */
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .ticker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 15px;
+        }
+
+        .ticker-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .current-price {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        .prediction-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .prediction-badge {
+            font-size: 3rem;
+            font-weight: 800;
+            padding: 10px 40px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .pred-up { color: var(--accent-green); }
+        .pred-down { color: var(--accent-red); }
+
+        .confidence-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: #334155;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .confidence-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-blue);
+            transition: width 1s ease;
+        }
+
+        .meta-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 20px;
+        }
+
+        /* Loader */
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent-blue);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .error-msg {
+            color: var(--accent-red);
+            margin-top: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>NIFTY 50 PREDICTOR</h1>
+        <div class="subtitle">Powered by XGBoost & Technical Analysis</div>
+
+        <div class="search-box">
+            <input type="text" id="tickerInput" placeholder="Enter Symbol (e.g. RELIANCE)" onkeypress="handleEnter(event)">
+            <button onclick="getPrediction()" id="predictBtn">PREDICT</button>
+        </div>
+
+        <div class="chips">
+            <div class="chip" onclick="setTicker('RELIANCE')">RELIANCE</div>
+            <div class="chip" onclick="setTicker('TCS')">TCS</div>
+            <div class="chip" onclick="setTicker('HDFCBANK')">HDFCBANK</div>
+            <div class="chip" onclick="setTicker('INFY')">INFY</div>
+            <div class="chip" onclick="setTicker('ICICIBANK')">ICICIBANK</div>
+            <div class="chip" onclick="setTicker('SBIN')">SBIN</div>
+        </div>
+
+        <div class="loader" id="loader"></div>
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="result-card" id="resultCard">
+            <div class="ticker-header">
+                <div class="ticker-name" id="resTicker">RELIANCE</div>
+                <div class="current-price">₹<span id="resPrice">0.00</span></div>
+            </div>
+
+            <div class="prediction-container">
+                <div style="font-size: 0.9rem; color: #94a3b8;">NEXT DAY TREND</div>
+                <div class="prediction-badge" id="resBadge">UP</div>
+                <div style="font-size: 0.9rem; color: #94a3b8;">AI Confidence: <span id="resConf">0%</span></div>
+                
+                <div class="confidence-bar-bg">
+                    <div class="confidence-bar-fill" id="confBar"></div>
+                </div>
+            </div>
+
+            <div class="meta-info">
+                <span id="resModel">Model: Nifty 50 AI</span>
+                <span>Timeline: T+1 Day</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function setTicker(ticker) {
+            document.getElementById('tickerInput').value = ticker;
+            getPrediction();
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') getPrediction();
+        }
+
+        async function getPrediction() {
+            const ticker = document.getElementById('tickerInput').value.trim();
+            if (!ticker) return;
+
+            // UI Reset
+            const btn = document.getElementById('predictBtn');
+            const loader = document.getElementById('loader');
+            const card = document.getElementById('resultCard');
+            const errorMsg = document.getElementById('errorMsg');
+
+            btn.disabled = true;
+            btn.innerText = "ANALYZING...";
+            loader.style.display = 'block';
+            card.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            try {
+                const response = await fetch(`/predict/${ticker}`);
+                if (!response.ok) throw new Error('Ticker not found or insufficient data');
+                
+                const data = await response.json();
+                
+                // Populate Data
+                document.getElementById('resTicker').innerText = data.ticker;
+                document.getElementById('resPrice').innerText = data.price.toLocaleString('en-IN');
+                document.getElementById('resConf').innerText = (data.confidence * 100).toFixed(1) + "%";
+                document.getElementById('resModel').innerText = "Model: " + data.model;
+
+                // Handle Badge Color
+                const badge = document.getElementById('resBadge');
+                const bar = document.getElementById('confBar');
+                
+                badge.innerText = data.prediction;
+                if (data.prediction === 'UP') {
+                    badge.className = 'prediction-badge pred-up';
+                    bar.style.backgroundColor = '#22c55e';
+                } else {
+                    badge.className = 'prediction-badge pred-down';
+                    bar.style.backgroundColor = '#ef4444';
+                }
+
+                // Animate Bar
+                setTimeout(() => {
+                    bar.style.width = (data.confidence * 100) + "%";
+                }, 100);
+
+                card.style.display = 'block';
+
+            } catch (err) {
+                errorMsg.innerText = err.message;
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "PREDICT";
+                loader.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
